@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const userRoutes = require("./app/routes/userRoutes");
+const appointmentRoutes = require("./app/routes/appointmentRoutes");
 const app = express();
 const corsOptions = {
  // origin: 'https://e-react-frontend-55dbf7a5897e.herokuapp.com', 
@@ -28,6 +29,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/users", userRoutes); // Mount user routes
+app.use("/api/appointments/", appointmentRoutes); // Mount user routes
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {

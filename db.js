@@ -33,6 +33,9 @@ const db = {};
 db.Sequelize = Sequelize;
 db.sequelize = sequelize;
 db.PatientsRegistration = require("./app/models/PatientsRegistration")(sequelize, Sequelize);
+db.DoctorsRegistration = require("./app/models/DoctorsRegistration")(sequelize, Sequelize);
+db.DoctorsAvailableTimeSegment = require("./app/models/DoctorsAvailableTimeSegment")(sequelize, Sequelize);
+db.DoctorsAppointmentRequest = require("./app/models/DoctorsAppointmentRequest")(sequelize, Sequelize);
 
 
 module.exports = db;
