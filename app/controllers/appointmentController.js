@@ -81,6 +81,7 @@ exports.doctorDeleteAvailableTimeSegment = async (req, res) => {
 
 exports.doctorGetAppointmentRequests = async (req, res) => {
   try {
+    console.log(req.body);
     const { user } = await parseUserToken(req.body.token);
     const requests = await db.DoctorsAppointmentRequest.findAll({
       where: {

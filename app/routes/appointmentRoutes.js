@@ -11,7 +11,7 @@ router.get("/patient/appointments", appointmentController.patientGetAppointments
 
 router.get("/available_doctors", appointmentController.patientGetAvailableDoctors);
 
-router.get("/doctor/available_time_segments", appointmentController.doctorGetAvailableTimeSegments);
+router.post("/doctor/get_available_time_segments", appointmentController.doctorGetAvailableTimeSegments);
 router.post("/doctor/available_time_segments", appointmentController.doctorCreateAvailableTimeSegment);
 router.delete("/doctor/available_time_segments", appointmentController.doctorDeleteAvailableTimeSegment);
 

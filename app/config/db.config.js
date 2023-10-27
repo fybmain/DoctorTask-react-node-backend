@@ -1,6 +1,6 @@
 // config/db.config.js
 module.exports = {
-  HOST: "192.168.100.122",
+  HOST: "172.17.0.2",
   USER: "root",
   PASSWORD: "my-secret-pw",
   DB: "doctor",
