@@ -702,6 +702,64 @@ app.get('/heartstroke/:patientId', async (req, res, nxt) => {
 /**
  * Heart Stroke Data Endpoint ends
  **/
+
+
+// ------------------- Brain Stroke Data Endpoint -------------------------//
+app.get('/brainstroke/:patientId', async (req, res, nxt) => {
+  const { patientId } = req.params;
+
+  strokesql = `SELECT * FROM brain_stroke
+          WHERE patient_id = "${patientId}" 
+          limit 1`;
+      
+  patientsql = `SELECT Gender as gender, Age as age FROM patients_registration
+          WHERE id = "${patientId}" 
+          limit 1`;
+
+  let strokeData = null;
+  let patientData = null;
+  try {
+      strokeData = await mysql.query(strokesql);
+      patientData = await mysql.query(patientsql);
+  } catch (error) {
+      return res.status(500).send({ error: "Something wrong in MySQL" });
+  }
+
+  if (!strokeData || !patientData) {
+      return res.status(404).send({ error: "No patient matched in database." });
+  }
+  
+  return res.json({...strokeData[0], ...patientData[0]});
+});
+
+// ------------------- Heart Fail Data Endpoint -------------------------//
+app.get('/heartfailure/:patientId', async (req, res, nxt) => {
+  const { patientId } = req.params;
+
+  strokesql = `SELECT * FROM heart_failure
+          WHERE patient_id = "${patientId}" 
+          limit 1`;
+      
+  patientsql = `SELECT Gender as gender, Age as age FROM patients_registration
+          WHERE id = "${patientId}" 
+          limit 1`;
+
+  let strokeData = null;
+  let patientData = null;
+  try {
+      strokeData = await mysql.query(strokesql);
+      patientData = await mysql.query(patientsql);
+  } catch (error) {
+      return res.status(500).send({ error: "Something wrong in MySQL" });
+  }
+
+  if (!strokeData || !patientData) {
+      return res.status(404).send({ error: "No patient matched in database." });
+  }
+  
+  return res.json({...strokeData[0], ...patientData[0]});
+});
+
 // -------------------Liver Preidiction API -------------------------//
 app.post("/liver_disease", async (req, res) => {
     const patientID = req.body.patientId //patient ID
