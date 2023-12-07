@@ -1,52 +1,62 @@
 
-const dbConfig = require("../config/db.config");
 const db = require("../../db");
-const Task = db.Task;
 const { Op, QueryTypes } = require("sequelize");
 
+const DoctorTask = db.DoctorTask;
+
+/*
+const getPatientName = async (patientId) => {
+  return (await db.sequelize.query("SELECT concat_ws(' ', FName, MName, LName) AS patientName FROM patients_registration as td WHERE td.id=$id", {
+    bind: { id: patientId },
+    type: QueryTypes.SELECT,
+  })).patientName;
+}
 
 // Find all task, good
-exports.getAllTasks = (req, res) => {
+exports.getAllTasks = async (req, res) => {
   const { filter } = req.query;
-  let whereCondition = {};
 
   // Add condition based on the filter option
+  const currentDate = new Date();
+  let whereCondition;
   if (filter === 'today') {
-    const currentDate = new Date();
-    const oneDayAgo = new Date(currentDate.getTime() - 1 * 24 * 60 * 60 * 1000);
     whereCondition = {
-      appointmentTime: {
-        [Op.gte]: oneDayAgo,
-      },
+      start: new Date(currentDate.getTime() - 1 * 24 * 60 * 60 * 1000),
+      end: new Date(currentDate.getTime() + 1 * 24 * 60 * 60 * 1000),
     };
-  }
-  else if (filter === 'week') {
-    const currentDate = new Date();
-    const oneWeekAgo = new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+  } else if (filter === 'week') {
     whereCondition = {
-      appointmentTime: {
-        [Op.gte]: oneWeekAgo,
-      },
+      start: new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000),
+      end: new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000),
     };
+  } else {
+    whereCondition = {};
   }
 
-  Task.findAll({
-    where: whereCondition, // Include the where condition here
-  })
-    .then((data) => {
-      res.send(data);
-    })
+  try{
+    const data = await DoctorTask.findAll({
+      // Include the where condition here
+      where: {
+        ...whereCondition,
+        Type: 1,
+      },
+    });
+
+    res.send(data.map((record) => ({
+      ...record,
+      Patient: getPatient(data.Patient),
+    }));
+
     .catch((err) => {
       res.status(400).send({
         message: err.message || `Some error occurred while retrieving tasks.`,
       });
     });
-};
-
+*/
 
 // Query specific task, good
 exports.getTaskByPatientDetails = (req, res) => {
-  Task.findOne({ 
+  DoctorTask.findOne({ 
     where: { 
       id: req.params.id,
      }
@@ -64,27 +74,21 @@ exports.getTaskByPatientDetails = (req, res) => {
 // Create a new task,good
 exports.createTask = (req, res) => {
   console.log(req.body);
-  // Validate request
-  if (!req.body.FName) {
-    res.status(400).send({
-      message: "Content can not be empty!",
-    });
-    return;
-  }
 
   // Create a task then save it in the database
   const task = {
-    DoctorName: req.body.DoctorName,
-    FName: req.body.FName,
-    MName: req.body.MName,
-    LName: req.body.LName,
-    Age: req.body.Age,
-    Plan: req.body.Plan,
-    appointmentTime: req.body.appointmentTime,
+    Type: 1,
+    Doctor: req.body.Doctor,
+    Patient: req.body.Patient,
+    Status: 0,
+    BookCount: 0,
+    Start: req.body.Start,
+    End: req.body.End,
+    Description: req.body.Description,
   };
 
   // Save task in the database
-  Task.create(task)
+  DoctorTask.create(task)
     .then((data) => {
       res.send(data);
     })
@@ -98,7 +102,7 @@ exports.createTask = (req, res) => {
 
 // Update task
 exports.updateTask = (req, res) => {
-  Task.update(req.body,{ where: { 
+  DoctorTask.update(req.body,{ where: { 
     id: req.params.id,
     } })
     .then((result) => {
@@ -121,8 +125,9 @@ exports.updateTask = (req, res) => {
 
 // Delete task,good
 exports.deleteTask = (req, res) => {
-  Task.destroy({ where: { 
-    id: req.params.id,
+  const id = req.params.id;
+  DoctorTask.destroy({ where: { 
+    id,
    } })
     .then((data) => {
       if (data) {
@@ -131,14 +136,13 @@ exports.deleteTask = (req, res) => {
         });
       } else {
         res.send({
-          message: `Cannot delete Task with FName=${FName}, MName=${MName}, LName=${LName}, and Age=${Age}. Maybe Task was not found!`,
+          message: `Cannot delete Task with id=${id}. Maybe Task was not found!`,
         });
       }
     })
     .catch((err) => {
       res.status(400).send({
-        message: `Could not delete Task with FName=${FName}, MName=${MName}, LName=${LName}, and Age=${Age}`,
+        message: `Could not delete Task with id=${id}`,
       });
     });
 };
-

@@ -1,41 +1,33 @@
 const db = require("../../db");
 const { Op, QueryTypes } = require("sequelize");
 
-const getDoctor = async (id) => {
-  const result = await db.sequelize.query("SELECT id, Fname FROM doctors_registration WHERE id=:id", {
-    replacements: { id },
-    type: QueryTypes.SELECT,
-  });
-  return { id: result[0].id, name: result[0].Fname };
-};
+exports.getPatients = async (req, res) => {
+  try {
+    const { loginData } = req.body;
+    const result = await db.sequelize.query("SELECT patient_id AS id, (SELECT concat_ws(' ', FName, MName, LName) FROM patients_registration as tp WHERE tp.id=t1.patient_id) AS name FROM doctor_recordauthorized AS t1 WHERE doctor_id=$id", {
+      bind: { id: loginData.id },
+      type: QueryTypes.SELECT,
+    });
 
-const getPatient = async (id) => {
-  const result = await db.sequelize.query("SELECT id, FName FROM patients_registration WHERE id=:id", {
-    replacements: { id },
-    type: QueryTypes.SELECT,
-  });
-  return { id: result[0].id, name: result[0].FName };
+    res.json({ status: 'OK', result });
+  } catch (error) {
+    console.error("Error getPatients:", error);
+    res.status(500).json({ status: 'InternalServerError' });
+  }
 };
 
 exports.doctorGetCalendar = async (req, res) => {
   try {
     const { loginData, start, end } = req.body;
-    const timesegments = await db.DoctorAvailableTimeSegment.findAll({
-      where: {
-        Doctor: loginData.id,
-        Start: { [Op.lte]: end },
-        End: { [Op.gte]: start },
-      },
+    const result = await db.sequelize.query("SELECT *, (SELECT concat_ws(' ', Fname, Mname, Lname) FROM doctors_registration as td WHERE td.id=t1.doctor) AS doctorName FROM doctor_tasks AS t1 WHERE doctor=$doctor AND start<=$end AND end>=$start", {
+      bind: { start, end, doctor: loginData.id },
+      type: QueryTypes.SELECT,
     });
 
-    res.json({ status: 'OK', result: await Promise.all(timesegments.map(async (record) => ({
-      id: record.id,
-      doctor: await getDoctor(record.Doctor),
-      status: record.Status,
-      start: record.Start,
-      end: record.End,
-      description: record.Description,
-    })))});
+    res.json({ status: 'OK', result: result.map((record) => ({
+      ...record,
+      doctor: { id: record.doctor, name: record.doctorName },
+    }))});
   } catch (error) {
     console.error("Error doctorGetCalendar:", error);
     res.status(500).json({ status: 'InternalServerError' });
@@ -45,20 +37,15 @@ exports.doctorGetCalendar = async (req, res) => {
 exports.patientGetCalendar = async (req, res) => {
   try {
     const { loginData, start, end } = req.body;
-    const result = await db.sequelize.query("SELECT *, (SELECT status FROM doctor_appointment_requests as t2 WHERE t2.patient = :patient_id AND t2.time_segment = t1.id) AS appointment_status FROM doctor_available_time_segments as t1 WHERE t1.start <= :end AND t1.end >= :start AND EXISTS (SELECT id FROM doctor_appointment_requests as t2 WHERE t2.patient = :patient_id AND t2.time_segment = t1.id)", {
-      replacements: { start, end, patient_id: loginData.id },
+    const result = await db.sequelize.query("SELECT *, (SELECT concat_ws(' ', Fname, Mname, Lname) FROM doctors_registration as td WHERE td.id=t1.doctor) AS doctorName, (SELECT status FROM doctor_appointment_requests AS tr WHERE tr.patient=$patient_id AND tr.task=t1.id) AS appointmentStatus FROM doctor_tasks AS t1 WHERE type=2 AND start<=$end AND end>=$start AND EXISTS (SELECT 1 FROM doctor_recordauthorized AS ta WHERE ta.doctor_id=t1.doctor AND ta.patient_id=$patient_id)", {
+      bind: { start, end, patient_id: loginData.id },
       type: QueryTypes.SELECT,
     });
 
-    res.json({ status: 'OK', result: await Promise.all(result.map(async (record) => ({
-      id: record.id,
-      doctor: await getDoctor(record.doctor),
-      status: record.status,
-      appointmentStatus: record.appointment_status,
-      start: record.start,
-      end: record.end,
-      description: record.description,
-    })))});
+    res.json({ status: 'OK', result: result.map((record) => ({
+      ...record,
+      doctor: { id: record.doctor, name: record.doctorName },
+    }))});
   } catch (error) {
     console.error("Error patientGetCalendar:", error);
     res.status(500).json({ status: 'InternalServerError' });
@@ -68,29 +55,22 @@ exports.patientGetCalendar = async (req, res) => {
 exports.getTimeSegmentDetail = async (req, res) => {
   try {
     const { loginData, id } = req.body;
-    const timeSegment = await db.DoctorAvailableTimeSegment.findOne({
-      where: { id },
-    });
-    const requests = await db.DoctorAppointmentRequest.findAll({
-      where: {
-        TimeSegment: timeSegment.id,
-      },
+    const task = (await db.sequelize.query("SELECT *, (SELECT concat_ws(' ', Fname, Mname, Lname) FROM doctors_registration as td WHERE td.id=t1.doctor) AS doctorName FROM doctor_tasks AS t1 WHERE id=$id", {
+      bind: { id },
+      type: QueryTypes.SELECT,
+    }))[0];
+    console.log(task);
+    const requests = await db.sequelize.query("SELECT *, (SELECT concat_ws(' ', FName, MName, LName) FROM patients_registration as tp WHERE tp.id=t1.patient) AS patientName FROM doctor_appointment_requests AS t1 WHERE task=$task_id", {
+      bind: { task_id: task.id },
+      type: QueryTypes.SELECT,
     });
 
     res.json({ status: 'OK', result: {
-      id: timeSegment.id,
-      doctor: await getDoctor(timeSegment.Doctor),
-      status: timeSegment.Status,
-      start: timeSegment.Start,
-      end: timeSegment.End,
-      description: timeSegment.Description,
-      requests: await Promise.all(requests.map(async (record) => ({
-        id: record.id,
-        patient: await getPatient(record.Patient),
-        timeSegment: record.TimeSegment,
-        status: record.Status,
-        description: record.Description,
-      }))),
+      ...task,
+      requests: requests.map((record) => ({
+        ...record,
+        patient: { id: record.patient, name: record.patientName },
+      })),
     }});
   } catch (error) {
     console.error("Error getTimeSegmentDetail:", error);
@@ -101,22 +81,25 @@ exports.getTimeSegmentDetail = async (req, res) => {
 exports.doctorCreateAvailableTimeSegment = async (req, res) => {
   try {
     const { loginData, start, end, description } = req.body;
-    const timesegment = db.DoctorAvailableTimeSegment.build({
+    const task = db.DoctorTask.build({
+      Type: 2,
       Doctor: loginData.id,
+      Patient: null,
       Status: 0,
+      BookCount: 0,
       Start: start,
       End: end,
       Description: description,
     });
 
-    await timesegment.save();
-    res.json({ status: 'OK', result: timesegment.id });
+    await task.save();
+
+    res.json({ status: 'OK', result: task.id });
   } catch (error) {
     console.error("Error doctorCreateAvailableTimeSegment:", error);
     res.status(500).json({ status: 'InternalServerError' });
   }
 };
-
 
 exports.doctorApproveRequest = async (req, res) => {
   try {
@@ -129,18 +112,18 @@ exports.doctorApproveRequest = async (req, res) => {
       if(request.Status !== 0){
         throw new Error('Not Approvable');
       }
-
       request.Status = 1;
-      const timesegment = await db.DoctorAvailableTimeSegment.findOne({
-        where: { id: request.TimeSegment },
+
+      const task = await db.DoctorTask.findOne({
+        where: { id: request.Task },
         transaction: t,
       });
-      timesegment.Status = -1;
-      await timesegment.save({transaction: t});
+      task.Status = -1;
+      await task.save({transaction: t});
   
       const requests = await db.DoctorAppointmentRequest.update({ Status: -1 }, {
         where: {
-          TimeSegment: { [Op.eq]: request.TimeSegment },
+          Task: { [Op.eq]: request.Task },
           id: { [Op.ne]: request.id },
         },
         transaction: t,
@@ -158,23 +141,15 @@ exports.doctorApproveRequest = async (req, res) => {
 exports.patientSearchForTimeSegments = async (req, res) => {
   try {
     const { loginData, start, end } = req.body;
-    const timesegments = await db.DoctorAvailableTimeSegment.findAll({
-      where: {
-        Status: { [Op.gte]: 0 },
-        Start: { [Op.lte]: end },
-        End: { [Op.gte]: start },
-      },
+    const result = await db.sequelize.query("SELECT *, (SELECT concat_ws(' ', Fname, Mname, Lname) FROM doctors_registration as td WHERE td.id=t1.doctor) AS doctorName, (SELECT status FROM doctor_appointment_requests AS tr WHERE tr.patient=$patient_id AND tr.task=t1.id) AS appointmentStatus FROM doctor_tasks AS t1 WHERE type=2 AND start<=$end AND end>=$start AND EXISTS (SELECT 1 FROM doctor_recordauthorized AS ta WHERE ta.doctor_id=t1.doctor AND ta.patient_id=$patient_id)", {
+      bind: { start, end, patient_id: loginData.id },
+      type: QueryTypes.SELECT,
     });
 
-    //console.log(JSON.stringify(timesegments));
-    res.json({ status: 'OK', result: await Promise.all(timesegments.map(async (record) => ({
-      id: record.id,
-      doctor: await getDoctor(record.Doctor),
-      status: record.Status,
-      start: record.Start,
-      end: record.End,
-      description: record.Description,
-    })))});
+    res.json({ status: 'OK', result: result.map((record) => ({
+      ...record,
+      doctor: { id: record.doctor, name: record.doctorName },
+    }))});
   } catch (error) {
     console.error("Error patientSearchForTimeSegments:", error);
     res.status(500).json({ status: 'InternalServerError' });
@@ -185,19 +160,20 @@ exports.patientBookTime = async (req, res) => {
   try {
     return await db.sequelize.transaction(async (t) => {
       const { loginData, id, description } = req.body;
-      const timesegment = await db.DoctorAvailableTimeSegment.findOne({
+      const task = await db.DoctorTask.findOne({
         where: { id: id },
         transaction : t,
       });
-      if(timesegment.Status < 0){
+      if(task.Status < 0){
         res.json({ status: 'AlreadyBooked'});
         throw new Error('AlreadyBooked');
       }
-      timesegment.increment('Status', { by: 1, transaction: t});
+      task.increment('Status', { by: 1, transaction: t});
+      task.increment('BookCount', { by: 1, transaction: t});
 
       const request = db.DoctorAppointmentRequest.build({
         Patient: loginData.id,
-        TimeSegment: timesegment.id,
+        Task: task.id,
         Status: 0,
         Description: description,
       });
