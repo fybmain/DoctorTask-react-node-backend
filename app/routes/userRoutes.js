@@ -34,7 +34,7 @@ router.get("/clinichelp", contactController.getClinicHelp);
 router.get("/joinus", contactController.getJoinUs);
 router.get("/doctaskStaff", contactController.getDocTaskStaff);
 router.get("/patientMessageStaff", contactController.getPatientMessageStaff);
-//router.get("/tasks", TasksController.getAllTasks);
+router.get("/tasks", TasksController.getAllTasks);
 router.get("/tasks/:id", TasksController.getTaskByPatientDetails);
 router.get("/tasks/:FName", TasksController.getTaskByPatientDetails);
 router.post("/tasks/add", TasksController.createTask);

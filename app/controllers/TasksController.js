@@ -4,14 +4,6 @@ const { Op, QueryTypes } = require("sequelize");
 
 const DoctorTask = db.DoctorTask;
 
-/*
-const getPatientName = async (patientId) => {
-  return (await db.sequelize.query("SELECT concat_ws(' ', FName, MName, LName) AS patientName FROM patients_registration as td WHERE td.id=$id", {
-    bind: { id: patientId },
-    type: QueryTypes.SELECT,
-  })).patientName;
-}
-
 // Find all task, good
 exports.getAllTasks = async (req, res) => {
   const { filter } = req.query;
@@ -21,13 +13,11 @@ exports.getAllTasks = async (req, res) => {
   let whereCondition;
   if (filter === 'today') {
     whereCondition = {
-      start: new Date(currentDate.getTime() - 1 * 24 * 60 * 60 * 1000),
-      end: new Date(currentDate.getTime() + 1 * 24 * 60 * 60 * 1000),
+      Start: { [Op.gte]: new Date(currentDate.getTime() - 1 * 24 * 60 * 60 * 1000) },
     };
   } else if (filter === 'week') {
     whereCondition = {
-      start: new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000),
-      end: new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000),
+      Start: { [Op.gte]: new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000) },
     };
   } else {
     whereCondition = {};
@@ -38,21 +28,22 @@ exports.getAllTasks = async (req, res) => {
       // Include the where condition here
       where: {
         ...whereCondition,
-        Type: 1,
+      },
+      attributes: {
+        include: [
+          [db.sequelize.literal(`(SELECT concat_ws(' ', FName, MName, LName) FROM patients_registration AS td WHERE td.id=DoctorTask.Patient)`), 'PatientName'],
+        ],
       },
     });
 
-    res.send(data.map((record) => ({
-      ...record,
-      Patient: getPatient(data.Patient),
-    }));
+    res.send(data.map((record) => record.dataValues));
 
-    .catch((err) => {
-      res.status(400).send({
-        message: err.message || `Some error occurred while retrieving tasks.`,
-      });
+  }catch(err) {
+    res.status(400).send({
+      message: err.message || `Some error occurred while retrieving tasks.`,
     });
-*/
+  }
+};
 
 // Query specific task, good
 exports.getTaskByPatientDetails = (req, res) => {
@@ -77,11 +68,8 @@ exports.createTask = (req, res) => {
 
   // Create a task then save it in the database
   const task = {
-    Type: 1,
     Doctor: req.body.Doctor,
     Patient: req.body.Patient,
-    Status: 0,
-    BookCount: 0,
     Start: req.body.Start,
     End: req.body.End,
     Description: req.body.Description,

@@ -5,9 +5,9 @@ module.exports = (sequelize, Sequelize) => {
         type: Sequelize.INTEGER,
         field: 'patient',
       },
-      Task:{
+      TimeSegment:{
         type: Sequelize.INTEGER,
-        field: 'task',
+        field: 'time_segment',
       },
       Status:{
         type: Sequelize.TINYINT,
